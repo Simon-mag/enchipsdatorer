@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,8 +65,7 @@ int is_blue_button_pressed(){
 	//return reg_reading;
 }
 
-void put_die_dots(uint8_t die_number){
-
+void reset_die_dots(){
 	HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_RESET);
@@ -74,6 +73,11 @@ void put_die_dots(uint8_t die_number){
 	HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_RESET);
+}
+
+void put_die_dots(uint8_t die_number){
+
+	reset_die_dots();
 
 	switch(die_number){
 	case 1:
@@ -153,27 +157,28 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  for(uint8_t i = 0; i<8; ++i){
+  for(uint8_t i = 1; i<8; ++i){
 	  put_die_dots(i);
-	  HAL_Delay(1000);
+	  HAL_Delay(800);
   }
 
-  HAL_Delay(2000);
-
+  HAL_Delay(1000);
+  reset_die_dots();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  srand(HAL_GetTick());
   int pressed = 0;
-
+  int last_pressed_state =0;
 
   while (1)
   {
 	  pressed = is_blue_button_pressed();
-	  uint8_t die_value = 1; // 1 <= die_value <= 6
 
-		  if(pressed){
+		  if(pressed && !last_pressed_state){
 			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
+			  uint8_t die_value = (rand() % 6) + 1 ;
 			  put_die_dots(die_value);
 
 		  }
@@ -183,6 +188,10 @@ int main(void)
 			  uint16_t      ld4_pin      = 0x01 << ld4_pin_nbr;
 			  HAL_GPIO_WritePin(ld4_gpio, ld4_pin, GPIO_PIN_RESET);
 		  }
+	  last_pressed_state = pressed;
+	  HAL_Delay(100);
+
+	//  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
 
 
     /* USER CODE END WHILE */
@@ -339,7 +348,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == B1_Pin) {
+        HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
+        uint8_t die_value = (rand() % 6) + 1;
+        put_die_dots(die_value);
+    }
+}*/
 /* USER CODE END 4 */
 
 /**
