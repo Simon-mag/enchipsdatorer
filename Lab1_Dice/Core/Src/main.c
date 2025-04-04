@@ -56,6 +56,21 @@ int is_blue_button_pressed();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+const uint16_t sseg[10] = {0x02F,0x006,0x09B,0x08F,0x0C6,0x0CD,0x0DD,0x007,0x0DF,0x0CF,0x19C};
+const uint16_t sseg_err = 0x1AC;
+
+
+
+//test 7seg display function
+void put_on_sseg(uint8_t dec_nbr){
+
+	if(dec_nbr == 0){
+
+	}
+
+
+}
+
 // Returns 1 if button is pressed, else 0 //
 int is_blue_button_pressed(){
 	uint32_t reg_reading = GPIOC->IDR;
@@ -65,6 +80,7 @@ int is_blue_button_pressed(){
 	//return reg_reading;
 }
 
+// Restets all pins in the dice to 0
 void reset_die_dots(){
 	HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_RESET);
@@ -75,6 +91,7 @@ void reset_die_dots(){
 	HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_RESET);
 }
 
+//turns on dice diodes depending on paramiter number
 void put_die_dots(uint8_t die_number){
 
 	reset_die_dots();
@@ -157,13 +174,20 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  for(uint8_t i = 1; i<8; ++i){
+  /*for(uint8_t i = 1; i<8; ++i){
 	  put_die_dots(i);
 	  HAL_Delay(800);
   }
 
   HAL_Delay(1000);
-  reset_die_dots();
+  reset_die_dots();*/
+
+  for(uint8_t i = 0; i < 10; ++i){
+  		put_on_sseg(i);
+  		HAL_Delay(333);
+  	}
+  	put_on_sseg(88);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -180,6 +204,7 @@ int main(void)
 			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
 			  uint8_t die_value = (rand() % 6) + 1 ;
 			  put_die_dots(die_value);
+			  put_on_sseg(die_value);
 
 		  }
 		  else{
@@ -304,6 +329,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|DI_A_Pin
                           |DI_B_Pin|DI_C_Pin|DI_D_Pin|DI_E_Pin, GPIO_PIN_RESET);
 
@@ -315,6 +344,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC0 PC1 PC2 PC3
+                           PC4 PC6 PC7 PC8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin DI_A_Pin
                            DI_B_Pin DI_C_Pin DI_D_Pin DI_E_Pin */
