@@ -51,12 +51,74 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+int is_blue_button_pressed();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// Returns 1 if button is pressed, else 0 //
+int is_blue_button_pressed(){
+	uint32_t reg_reading = GPIOC->IDR;
+	if(reg_reading)
+		return 1;
+	return 0;
+	//return reg_reading;
+}
 
+void put_die_dots(uint8_t die_number){
+
+	HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_RESET);
+
+	switch(die_number){
+	case 1:
+		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
+		break;
+	case 2:
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		break;
+	case 3:
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		break;
+	case 4:
+		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
+		break;
+	case 5:
+		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
+		break;
+	case 6:
+		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
+		break;
+	default:
+		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -91,16 +153,29 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  for(uint8_t i = 0; i<8; ++i){
+	  put_die_dots(i);
+	  HAL_Delay(1000);
+  }
+
+  HAL_Delay(2000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   int pressed = 0;
+
+
   while (1)
   {
-	  pressed = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+	  pressed = is_blue_button_pressed();
+	  uint8_t die_value = 1; // 1 <= die_value <= 6
+
 		  if(pressed){
 			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
+			  put_die_dots(die_value);
+
 		  }
 		  else{
 			  GPIO_TypeDef* ld4_gpio     = GPIOB;
@@ -108,6 +183,8 @@ int main(void)
 			  uint16_t      ld4_pin      = 0x01 << ld4_pin_nbr;
 			  HAL_GPIO_WritePin(ld4_gpio, ld4_pin, GPIO_PIN_RESET);
 		  }
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
