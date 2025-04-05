@@ -56,28 +56,28 @@ int is_blue_button_pressed();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const uint16_t sseg[10] = {0x02F,0x006,0x09B,0x08F,0x0C6,0x0CD,0x0DD,0x007,0x0DF,0x0CF,0x19C};
-const uint16_t sseg_err = 0x1AC;
+const uint16_t sseg[10] = {0x2F,0x06,0x9B,0x8F,0xC6,0xCD,0xDD,0x07,0xDF,0xCF};
+const uint16_t sseg_err = 0x19C;
 
 
 
 //test 7seg display function
 void put_on_sseg(uint8_t dec_nbr){
+	GPIOC->ODR = 0x00;
 
-	if(dec_nbr == 0){
-
+	for(uint8_t i = 0; i<10; ++i){
+		if(dec_nbr == i){
+			GPIOC->ODR = sseg[i];
+			return;
+		}
 	}
-
-
+	GPIOC->ODR = sseg_err;
 }
 
 // Returns 1 if button is pressed, else 0 //
 int is_blue_button_pressed(){
 	uint32_t reg_reading = GPIOC->IDR;
-	if(reg_reading)
-		return 1;
-	return 0;
-	//return reg_reading;
+	return reg_reading;
 }
 
 // Restets all pins in the dice to 0
@@ -174,11 +174,10 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  /*for(uint8_t i = 1; i<8; ++i){
+ /* for(uint8_t i = 1; i<8; ++i){
 	  put_die_dots(i);
 	  HAL_Delay(800);
   }
-
   HAL_Delay(1000);
   reset_die_dots();*/
 
@@ -194,7 +193,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   srand(HAL_GetTick());
   int pressed = 0;
-  int last_pressed_state =0;
+  int last_pressed_state = 0;
 
   while (1)
   {
@@ -203,7 +202,7 @@ int main(void)
 		  if(pressed && !last_pressed_state){
 			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
 			  uint8_t die_value = (rand() % 6) + 1 ;
-			  put_die_dots(die_value);
+			  //put_die_dots(die_value);
 			  put_on_sseg(die_value);
 
 		  }
