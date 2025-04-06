@@ -56,7 +56,7 @@ int is_blue_button_pressed();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const uint16_t sseg[10] = {0x2F,0x06,0x9B,0x8F,0xC6,0xCD,0xDD,0x07,0xDF,0xCF};
+const uint16_t sseg[10] = {0x5F,0x06,0x9B,0x8F,0xC6,0xCD,0xDD,0x07,0xDF,0xCF};
 const uint16_t sseg_err = 0x19C;
 
 
@@ -77,7 +77,7 @@ void put_on_sseg(uint8_t dec_nbr){
 // Returns 1 if button is pressed, else 0 //
 int is_blue_button_pressed(){
 	uint32_t reg_reading = GPIOC->IDR;
-	return reg_reading;
+	return (reg_reading & GPIO_PIN_13) != 0;
 }
 
 // Restets all pins in the dice to 0
