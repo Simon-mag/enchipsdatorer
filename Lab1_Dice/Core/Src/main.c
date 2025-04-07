@@ -72,8 +72,7 @@ void put_on_sseg(uint8_t dec_nbr){
 
 // Returns 1 if button is pressed, else 0 //
 int is_blue_button_pressed(){
-	uint32_t reg_reading = GPIOC->IDR;
-	return (reg_reading & GPIO_PIN_13) != 0;
+	return (GPIOC->IDR & GPIO_PIN_13) != 0;
 }
 
 // Restets all pins in the dice to 0
