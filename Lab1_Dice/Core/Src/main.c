@@ -60,17 +60,13 @@ const uint16_t sseg[10] = {0x5F,0x06,0x9B,0x8F,0xC6,0xCD,0xDD,0x07,0xDF,0xCF};
 const uint16_t sseg_err = 0x19C;
 
 
-
-//test 7seg display function
 void put_on_sseg(uint8_t dec_nbr){
 	GPIOC->ODR = 0x00;
 
-	for(uint8_t i = 0; i<10; ++i){
-		if(dec_nbr == i){
-			GPIOC->ODR = sseg[i];
-			return;
+	if(dec_nbr >= 0 && dec_nbr <= 9){
+		GPIOC->ODR = sseg[dec_nbr];
+		return;
 		}
-	}
 	GPIOC->ODR = sseg_err;
 }
 
@@ -174,18 +170,20 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
- /* for(uint8_t i = 1; i<8; ++i){
+  for(uint8_t i = 1; i<8; ++i){
 	  put_die_dots(i);
-	  HAL_Delay(800);
+	  HAL_Delay(333);
   }
   HAL_Delay(1000);
-  reset_die_dots();*/
+  reset_die_dots();
 
   for(uint8_t i = 0; i < 10; ++i){
   		put_on_sseg(i);
   		HAL_Delay(333);
   	}
   	put_on_sseg(88);
+  	HAL_Delay(1000);
+	GPIOC->ODR = 0x00;
 
   /* USER CODE END 2 */
 
@@ -193,16 +191,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   srand(HAL_GetTick());
   int pressed = 0;
-  int last_pressed_state = 0;
 
   while (1)
   {
 	  pressed = is_blue_button_pressed();
 
-		  if(pressed && !last_pressed_state){
+		  if(pressed){
 			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
 			  uint8_t die_value = (rand() % 6) + 1 ;
-			  //put_die_dots(die_value);
+			  put_die_dots(die_value);
 			  put_on_sseg(die_value);
 
 		  }
@@ -212,11 +209,7 @@ int main(void)
 			  uint16_t      ld4_pin      = 0x01 << ld4_pin_nbr;
 			  HAL_GPIO_WritePin(ld4_gpio, ld4_pin, GPIO_PIN_RESET);
 		  }
-	  last_pressed_state = pressed;
-	  HAL_Delay(100);
-
-	//  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
-
+	  HAL_Delay(80);
 
     /* USER CODE END WHILE */
 
@@ -385,13 +378,36 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == B1_Pin) {
         HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
         uint8_t die_value = (rand() % 6) + 1;
         put_die_dots(die_value);
     }
-}*/
+}
+
+/*  uint32_t arr[10];
+  void test_endianness(){
+	  for(int i = 0; i<10; i +=2){
+		  arr[i+0] = 0xDEADBEEF;
+		  arr[i+1] = 0xCAFED00D;
+	  }
+	  uint16_t a = arr[0];
+	  uint16_t b = arr[1];
+	  uint16_t c = arr[2];
+	  uint8_t x = arr[0];
+	  uint8_t y = arr[1];
+	  uint8_t *arr8 = (uint8_t *) arr;
+	  uint8_t p = arr8[0];
+	  uint8_t q = arr8[1];
+	  uint8_t r = arr8[2];
+	  uint8_t s = arr8[3];
+	  uint8_t t = arr8[4];
+	  uint16_t babe = 0xBABE;
+	  arr[0] = babe;
+	  return;
+  }*/
+
 /* USER CODE END 4 */
 
 /**
