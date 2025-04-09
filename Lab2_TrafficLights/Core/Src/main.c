@@ -82,7 +82,7 @@ void push_button_light_off(){
 
 // Returns 1 if button is pressed, else 0 //
 int is_button_pressed(){
-	return (GPIOC->IDR & GPIO_PIN_0) != 0;
+	return (GPIOC->IDR & GPIO_PIN_13) != 0;
 }
 
 void reset_traffic_lights(){
@@ -246,7 +246,7 @@ int main(void)
 	  set_traffic_lights(i);
 	  HAL_Delay(333);
   }
-  reset_traffic_lights();
+  set_traffic_lights(1);
 
 
   enum state st = s_init;
@@ -255,8 +255,8 @@ int main(void)
   int pressed = 0;
 
 
-  uint32_t ticks_left_in_state;
-  uint32_t curr_tick;
+  uint32_t ticks_left_in_state = 0;
+  uint32_t curr_tick = 0;
   uint32_t last_tick = 0;
   /* USER CODE END 2 */
 
