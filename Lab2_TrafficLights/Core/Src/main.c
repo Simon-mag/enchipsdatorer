@@ -71,7 +71,6 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
-
 /* USER CODE BEGIN 0 */
 void push_button_light_on(){
 	GPIOC->BSRR = GPIO_BSRR_BS9;
@@ -94,7 +93,6 @@ void reset_traffic_lights(){
 
 void set_traffic_lights(enum state s){
 	reset_traffic_lights();
-	HAL_GPIO_WritePin(car_red_GPIO_Port, car_red_Pin, GPIO_PIN_SET);
 
 	switch(s){
 		case s_init:
@@ -123,9 +121,92 @@ void set_traffic_lights(enum state s){
 			GPIOA->BSRR = GPIO_BSRR_BS11 | GPIO_BSRR_BS9;
 			break;
 		default:
-			//Something went wrong
+				//Something went wrong, both green//
 			GPIOA->BSRR = GPIO_BSRR_BS10 | GPIO_BSRR_BS8;
 	}
+}
+
+void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state){
+
+	switch(*st){
+
+	case s_init:
+		if(*ev == ev_button_push){
+			*ev = ev_none;
+			*st = s_all_stop;
+			*ticks_left_in_state = 3000;
+			set_traffic_lights(s_all_stop);
+		}
+		break;
+	case s_all_stop:
+			if(*ev == ev_state_timeout){
+				*ev = ev_none;
+				*st = s_humans_go;
+				*ticks_left_in_state = 10000;
+				set_traffic_lights(s_humans_go);
+			}
+			break;
+
+	case s_humans_go:
+		if(*ev == ev_state_timeout){
+			push_button_light_off();
+			*ev = ev_none;
+			*st = s_prepare_car;
+			*ticks_left_in_state = 2000;
+			set_traffic_lights(s_prepare_car);
+		}
+		break;
+
+	case s_prepare_car:
+		if(*ev == ev_state_timeout){
+			*ev = ev_none;
+			*st = s_RY_car;
+			*ticks_left_in_state = 1000;
+			set_traffic_lights(s_RY_car);
+		}
+		break;
+
+	case s_RY_car:
+		if(*ev == ev_state_timeout){
+			*ev = ev_none;
+			*st = s_car_go;
+			*ticks_left_in_state = 0;
+			set_traffic_lights(s_car_go);
+		}
+		break;
+
+	case s_car_go:
+		if(*ev == ev_button_push){
+			*ev = ev_none;
+			*st = s_pushed_delay;
+			*ticks_left_in_state = 2000;
+			set_traffic_lights(s_pushed_delay);
+		}
+		break;
+
+	case s_pushed_delay:
+		if(*ev == ev_state_timeout){
+			*ev = ev_none;
+			*st = s_cars_stopping;
+			*ticks_left_in_state = 1000;
+			set_traffic_lights(s_cars_stopping);
+		}
+		break;
+
+	case s_cars_stopping:
+		if(*ev == ev_state_timeout){
+			*ev = ev_none;
+			*st = s_all_stop;
+			*ticks_left_in_state = 3000;
+			set_traffic_lights(s_all_stop);
+		}
+		break;
+
+	default :
+		break;
+
+	}
+
 }
 /* USER CODE END 0 */
 
@@ -137,11 +218,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  for(int i = 1; i < 9; ++i){
-	  set_traffic_lights(i);
-  }
-  HAL_Delay(200);
-  reset_traffic_lights();
 
   /* USER CODE END 1 */
 
@@ -165,37 +241,54 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  for(int i = 1; i < 9; ++i){
+	  set_traffic_lights(i);
+	  HAL_Delay(333);
+  }
+  reset_traffic_lights();
+
+
   enum state st = s_init;
   enum event ev = ev_none;
-  int pressed = 0;
   int last_pressed_state = 0;
+  int pressed = 0;
+
 
   uint32_t ticks_left_in_state;
   uint32_t curr_tick;
-  uint32_t last_tick;
+  uint32_t last_tick = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1){
 
 	  ev = ev_none;
 	  pressed = is_button_pressed();
 
-	  if(pressed && !last_pressed_state){
+	  if(pressed && !last_pressed_state && (st == s_car_go || st == s_init)){
+		  push_button_light_on();
 		  ev = ev_button_push;
 	  }
 
 	  curr_tick = HAL_GetTick();
+	  if(curr_tick != last_tick)
+		  ticks_left_in_state -= (curr_tick-last_tick);
 
-	  if(){
+	  if((ticks_left_in_state == 0 && last_tick > 0) && (st != s_car_go || st == s_init)){
 		  ev = ev_state_timeout;
 	  }
+
+
+	  last_tick = curr_tick;
+
+	  state_handler(&st,&ev, &ticks_left_in_state);
 
 	  last_pressed_state = pressed;
 
     /* USER CODE END WHILE */
-
 
     /* USER CODE BEGIN 3 */
   }
@@ -322,7 +415,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : crosswalk_button_Pin */
   GPIO_InitStruct.Pin = crosswalk_button_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(crosswalk_button_GPIO_Port, &GPIO_InitStruct);
 
