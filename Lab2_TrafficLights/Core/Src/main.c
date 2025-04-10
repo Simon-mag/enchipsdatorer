@@ -56,6 +56,8 @@ enum state{
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -66,6 +68,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,11 +85,10 @@ void push_button_light_off(){
 
 // Returns 1 if button is pressed, else 0 //
 int is_button_pressed(){
-	return (GPIOC->IDR & GPIO_PIN_13) != 0;
+	return (GPIOC->IDR & GPIO_PIN_0) != 0;
 }
 
 void reset_traffic_lights(){
-	GPIOC->BRR = GPIO_BRR_BR9;
 	GPIOA->BRR = GPIO_BRR_BR12 | GPIO_BRR_BR11 |
 				 GPIO_BRR_BR10 | GPIO_BRR_BR9  | GPIO_BRR_BR8;
 }
@@ -135,6 +137,8 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 			*ev = ev_none;
 			*st = s_all_stop;
 			*ticks_left_in_state = 3000;
+			push_button_light_on();
+			void abuzz_p_long();
 			set_traffic_lights(s_all_stop);
 		}
 		break;
@@ -149,10 +153,11 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 
 	case s_humans_go:
 		if(*ev == ev_state_timeout){
-			push_button_light_off();
 			*ev = ev_none;
 			*st = s_prepare_car;
 			*ticks_left_in_state = 2000;
+			push_button_light_off();
+			void abuzz_stop();
 			set_traffic_lights(s_prepare_car);
 		}
 		break;
@@ -161,7 +166,7 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 		if(*ev == ev_state_timeout){
 			*ev = ev_none;
 			*st = s_RY_car;
-			*ticks_left_in_state = 1000;
+			*ticks_left_in_state = 2000;
 			set_traffic_lights(s_RY_car);
 		}
 		break;
@@ -180,6 +185,8 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 			*ev = ev_none;
 			*st = s_pushed_delay;
 			*ticks_left_in_state = 2000;
+			push_button_light_on();
+			void abuzz_p_short();
 			set_traffic_lights(s_pushed_delay);
 		}
 		break;
@@ -188,7 +195,7 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 		if(*ev == ev_state_timeout){
 			*ev = ev_none;
 			*st = s_cars_stopping;
-			*ticks_left_in_state = 1000;
+			*ticks_left_in_state = 2000;
 			set_traffic_lights(s_cars_stopping);
 		}
 		break;
@@ -240,14 +247,17 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
   /* USER CODE BEGIN 2 */
-
+  void abuzz_start();
   for(int i = 1; i < 9; ++i){
 	  set_traffic_lights(i);
-	  HAL_Delay(333);
+	  HAL_Delay(1033);
   }
   set_traffic_lights(1);
 
+  void abuzz_stop();
 
   enum state st = s_init;
   enum event ev = ev_none;
@@ -269,12 +279,11 @@ int main(void)
 	  pressed = is_button_pressed();
 
 	  if(pressed && !last_pressed_state && (st == s_car_go || st == s_init)){
-		  push_button_light_on();
 		  ev = ev_button_push;
 	  }
 
 	  curr_tick = HAL_GetTick();
-	  if(curr_tick != last_tick)
+	  if(curr_tick != last_tick && curr_tick > last_tick)
 		  ticks_left_in_state -= (curr_tick-last_tick);
 
 	  if((ticks_left_in_state == 0 && last_tick > 0) && (st != s_car_go || st == s_init)){
@@ -342,6 +351,65 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
 }
 
 /**
