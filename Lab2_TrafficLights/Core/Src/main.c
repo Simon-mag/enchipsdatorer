@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "abuzz.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,11 +70,15 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+void abuzz_start();
+void abuzz_stop();
+void abuzz_p_long();
+void abuzz_p_short();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 void push_button_light_on(){
 	GPIOC->BSRR = GPIO_BSRR_BS9;
 }
@@ -138,7 +142,6 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 			*st = s_all_stop;
 			*ticks_left_in_state = 3000;
 			push_button_light_on();
-			void abuzz_p_long();
 			set_traffic_lights(s_all_stop);
 		}
 		break;
@@ -147,6 +150,8 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 				*ev = ev_none;
 				*st = s_humans_go;
 				*ticks_left_in_state = 10000;
+				abuzz_start();
+				abuzz_p_short();
 				set_traffic_lights(s_humans_go);
 			}
 			break;
@@ -157,7 +162,7 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 			*st = s_prepare_car;
 			*ticks_left_in_state = 2000;
 			push_button_light_off();
-			void abuzz_stop();
+			abuzz_stop();
 			set_traffic_lights(s_prepare_car);
 		}
 		break;
@@ -186,7 +191,6 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 			*st = s_pushed_delay;
 			*ticks_left_in_state = 2000;
 			push_button_light_on();
-			void abuzz_p_short();
 			set_traffic_lights(s_pushed_delay);
 		}
 		break;
@@ -211,7 +215,6 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 
 	default :
 		break;
-
 	}
 
 }
@@ -248,16 +251,11 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
-  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
   /* USER CODE BEGIN 2 */
-  void abuzz_start();
-  for(int i = 1; i < 9; ++i){
-	  set_traffic_lights(i);
-	  HAL_Delay(1033);
-  }
-  set_traffic_lights(1);
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
 
-  void abuzz_stop();
+  abuzz_start();
+  set_traffic_lights(1);
 
   enum state st = s_init;
   enum event ev = ev_none;
@@ -273,6 +271,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
+  //abuzz_start();
   while (1){
 
 	  ev = ev_none;
@@ -286,15 +285,12 @@ int main(void)
 	  if(curr_tick != last_tick && curr_tick > last_tick)
 		  ticks_left_in_state -= (curr_tick-last_tick);
 
-	  if((ticks_left_in_state == 0 && last_tick > 0) && (st != s_car_go || st == s_init)){
+	  if((ticks_left_in_state == 0 && last_tick > 0) && (st != s_car_go || st != s_init)){
 		  ev = ev_state_timeout;
 	  }
 
-
 	  last_tick = curr_tick;
-
 	  state_handler(&st,&ev, &ticks_left_in_state);
-
 	  last_pressed_state = pressed;
 
     /* USER CODE END WHILE */
