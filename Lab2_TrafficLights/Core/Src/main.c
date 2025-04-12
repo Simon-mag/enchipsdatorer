@@ -35,8 +35,15 @@
 enum event{
 	ev_none = 0,
 	ev_button_push,
-	ev_state_timeout
+	ev_state_timeout,
+	ev_error = -99
 };
+
+#define EVQ_SIZE 10
+enum event evq[ EVQ_SIZE ];
+int evq_count     = 0;
+int evq_front_ix  = 0;
+int evq_rear_ix   = 0;
 
 enum state{
 	s_init = 1,
@@ -48,6 +55,9 @@ enum state{
 	s_pushed_delay,
 	s_cars_stopping
 };
+
+
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -78,6 +88,7 @@ void abuzz_p_short();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 void push_button_light_on(){
 	GPIOC->BSRR = GPIO_BSRR_BS9;
@@ -218,6 +229,30 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 	}
 
 }
+
+void evq_init(){
+	for(int i = 0; i<10; ++i)
+		evq[i] = ev_error;
+}
+
+
+void evq_push_back(enum event ev){
+	if(evq_count != 0)
+		evq_rear_ix = (evq_rear_ix - 1 + 10) % 10;
+	evq[evq_rear_ix] = ev;
+	++evq_count;
+}
+
+enum event evq_pop_front(){
+	if(evq_count >= 0)
+		return ev_none;
+	enum event temp = evq[evq_front_ix];
+	if(evq_front_ix != evq_rear_ix)
+		evq_front_ix = (evq_front_ix - 1 + 10) % 10;
+	return temp;
+
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -251,6 +286,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  evq_init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
 
