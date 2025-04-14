@@ -88,7 +88,7 @@ void abuzz_p_short();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint32_t ticks_left_in_state = 0;
 
 void push_button_light_on(){
 	GPIOC->BSRR = GPIO_BSRR_BS9;
@@ -237,19 +237,36 @@ void evq_init(){
 
 
 void evq_push_back(enum event ev){
-	if(evq_count != 0)
-		evq_rear_ix = (evq_rear_ix - 1 + 10) % 10;
 	evq[evq_rear_ix] = ev;
-	++evq_count;
+
+	evq_rear_ix = (evq_rear_ix + 1) % EVQ_SIZE;
+	if(evq_count < EVQ_SIZE)
+		++evq_count;
 }
 
 enum event evq_pop_front(){
-	if(evq_count >= 0)
+	if(evq_count <= 0)
 		return ev_none;
+
 	enum event temp = evq[evq_front_ix];
-	if(evq_front_ix != evq_rear_ix)
-		evq_front_ix = (evq_front_ix - 1 + 10) % 10;
+	evq_front_ix = (evq_front_ix + 1) % EVQ_SIZE;
+	--evq_count;
 	return temp;
+}
+
+int systick_count = 0;
+void my_systick_handler(){
+
+	systick_count++;
+	if(systick_count == 1000){
+		HAL_GPIO_TogglePin (LD4_GPIO_Port, LD4_Pin);
+		systick_count = 0;
+	}
+	if(ticks_left_in_state > 0){
+		--ticks_left_in_state;
+		if(ticks_left_in_state == 0)
+			evq_push_back(ev_state_timeout);
+	}
 
 }
 
@@ -286,31 +303,30 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
-  evq_init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
-
-  abuzz_start();
-  set_traffic_lights(1);
+  //evq_init();
 
   enum state st = s_init;
   enum event ev = ev_none;
-  int last_pressed_state = 0;
+  set_traffic_lights(st);
+
+  /*int last_pressed_state = 0;
   int pressed = 0;
 
 
   uint32_t ticks_left_in_state = 0;
   uint32_t curr_tick = 0;
-  uint32_t last_tick = 0;
+  uint32_t last_tick = 0;*/
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  //abuzz_start();
   while (1){
 
-	  ev = ev_none;
+	  /*ev = ev_none;
 	  pressed = is_button_pressed();
 
 	  if(pressed && !last_pressed_state && (st == s_car_go || st == s_init)){
@@ -324,11 +340,11 @@ int main(void)
 	  if((ticks_left_in_state == 0 && last_tick > 0) && (st != s_car_go || st != s_init)){
 		  ev = ev_state_timeout;
 	  }
-
 	  last_tick = curr_tick;
-	  state_handler(&st,&ev, &ticks_left_in_state);
-	  last_pressed_state = pressed;
+	  last_pressed_state = pressed;*/
 
+	  ev = evq_pop_front();
+	  state_handler(&st,&ev,&ticks_left_in_state);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -515,7 +531,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : crosswalk_button_Pin */
   GPIO_InitStruct.Pin = crosswalk_button_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(crosswalk_button_GPIO_Port, &GPIO_InitStruct);
 
@@ -548,13 +564,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(crosswalk_button_light_GPIO_Port, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
+	if(GPIO_Pin == crosswalk_button_Pin){
+		evq_push_back(ev_button_push);
+	}
+}
 /* USER CODE END 4 */
 
 /**
