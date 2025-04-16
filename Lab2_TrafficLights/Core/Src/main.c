@@ -56,8 +56,6 @@ enum state{
 	s_cars_stopping
 };
 
-
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -227,7 +225,6 @@ void state_handler(enum state* st, enum event* ev, uint32_t* ticks_left_in_state
 	default :
 		break;
 	}
-
 }
 
 void evq_init(){
@@ -267,7 +264,6 @@ void my_systick_handler(){
 		if(ticks_left_in_state == 0)
 			evq_push_back(ev_state_timeout);
 	}
-
 }
 
 /* USER CODE END 0 */
@@ -305,20 +301,21 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
-  //evq_init();
+  evq_init();
 
   enum state st = s_init;
   enum event ev = ev_none;
   set_traffic_lights(st);
+#if 0
 
-  /*int last_pressed_state = 0;
+  int last_pressed_state = 0;
   int pressed = 0;
 
 
   uint32_t ticks_left_in_state = 0;
   uint32_t curr_tick = 0;
   uint32_t last_tick = 0;*/
-
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -326,7 +323,8 @@ int main(void)
 
   while (1){
 
-	  /*ev = ev_none;
+#if 0
+	  ev = ev_none;
 	  pressed = is_button_pressed();
 
 	  if(pressed && !last_pressed_state && (st == s_car_go || st == s_init)){
@@ -341,10 +339,12 @@ int main(void)
 		  ev = ev_state_timeout;
 	  }
 	  last_tick = curr_tick;
-	  last_pressed_state = pressed;*/
-
+	  last_pressed_state = pressed;
+#else
 	  ev = evq_pop_front();
 	  state_handler(&st,&ev,&ticks_left_in_state);
+
+#endif
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
