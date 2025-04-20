@@ -57,19 +57,22 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint16_t button_exti_count;
+uint16_t button_debounced_count;
+
 void uart_print_menu(){
 	char str[81] = {'\0'};
 	uint16_t str_len;
 	int one = 1;
 	int two = 2;
 
-	str_len = sprintf(str, "<> Welcome to the Clock menu! <>\n");
+	str_len = sprintf(str, "\n\r\n<> Welcome to the Clock menu! <>\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
 
-	str_len = sprintf(str, "Choose your destiny::");
+	str_len = sprintf(str, "     Choose your destiny:: \n\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
 
-	str_len = sprintf(str,"/t %d Clock Mode. \r\n%d Button mode.\r",one,two);
+	str_len = sprintf(str,"\t%d: Clock Mode.\r\n\t%d: Button mode.\r\n",one,two);
 	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
 
 }
@@ -106,8 +109,23 @@ void clock_mode(){
 void button_mode(){
 	/** init segment **/
 	/**main loop**/
+	int b1_pressed;
+
 	while(1){
 
+		if(1){
+				button_debounced_count = button_exti_count;
+		}
+		//check b1 button ) on board, active low)
+		b1_pressed = GPIO_PIN_RESET
+				== HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+		qs_put_big_num(b1_pressed ? button_exti_count : button_debounced_count);
+	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if(GPIO_Pin == MY_BUTTON_Pin){
+		button_exti_count++;
 	}
 }
 
@@ -145,6 +163,8 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,7 +177,7 @@ int main(void)
 		  qs_put_digits(i,i,i,i, 0);    HAL_Delay(dly);
 		  qs_put_digits(i,i,i,i, 1);	HAL_Delay(dly);
 	  }
-
+	  HAL_Delay(100);
 	  uart_print_menu();
 	  int menu_choice = uart_get_menu_choice();
 	  switch(menu_choice){
@@ -288,6 +308,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : MY_BUTTON_Pin */
+  GPIO_InitStruct.Pin = MY_BUTTON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(MY_BUTTON_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin SEG_CLK_Pin */
   GPIO_InitStruct.Pin = SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|SEG_CLK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -314,6 +340,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SEG_DIO_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
