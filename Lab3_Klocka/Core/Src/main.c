@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -41,24 +41,28 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint16_t button_exti_count;
+uint16_t button_debounced_count;
+uint8_t  unhandled_exti;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint16_t button_exti_count;
-uint16_t button_debounced_count;
+
 
 void uart_print_menu(){
 	char str[81] = {'\0'};
@@ -97,6 +101,26 @@ void uart_print_bad_choice(){
 	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
 }
 
+void uart_print_choice(uint8_t choice){
+	char str[81] = {'\0'};
+	uint16_t str_len;
+
+	switch(choice){
+
+	case 1:
+		str_len = sprintf(str,"\n      Welcome to Button mode! \r\n\n");
+		break;
+	case 2:
+		str_len = sprintf(str,"\n      Welcome to Clock mode! \r\n\n");
+		break;
+
+	default:
+		uart_print_bad_choice();
+		break;
+	}
+	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
+}
+
 
 void clock_mode(){
 	/** init segment **/
@@ -107,27 +131,55 @@ void clock_mode(){
 }
 
 void button_mode(){
+	uart_print_choice(1);
+	qs_put_big_num(0);
 	/** init segment **/
 	/**main loop**/
-	int b1_pressed;
+
+#if 0
+	int pressed = 0;
 
 	while(1){
-
 		if(1){
-				button_debounced_count = button_exti_count;
+			button_debounced_count = button_exti_count;
 		}
-		//check b1 button ) on board, active low)
-		b1_pressed = GPIO_PIN_RESET
-				== HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
-		qs_put_big_num(b1_pressed ? button_exti_count : button_debounced_count);
+		pressed = GPIO_PIN_RESET == HAL_GPIO_ReadPin(MY_BUTTON_GPIO_Port, MY_BUTTON_Pin);
+		qs_put_big_num(pressed ? button_exti_count : button_debounced_count);
 	}
+
+#else
+
+	while(1){
+		if(unhandled_exti){
+			button_debounced_count++;
+			qs_put_big_num(button_debounced_count);
+			unhandled_exti = 0;
+		}
+	}
+
+#endif
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+
 	if(GPIO_Pin == MY_BUTTON_Pin){
-		button_exti_count++;
+		HAL_NVIC_DisableIRQ(EXTI0_IRQn);
+		__HAL_TIM_SET_COUNTER(&htim2, 0);
+		HAL_TIM_Base_Start_IT(&htim2);
+
 	}
 }
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM2){
+		HAL_TIM_Base_Stop_IT(&htim2);
+		if(HAL_GPIO_ReadPin(MY_BUTTON_GPIO_Port, MY_BUTTON_Pin) == GPIO_PIN_RESET)
+			unhandled_exti = 1;
+
+		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	}
+}
+
 
 /* USER CODE END 0 */
 
@@ -161,6 +213,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -169,27 +222,27 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  for(int i = 0; i < 10; i++){
-		  uint32_t dly = 250;
-		  qs_put_big_num(i);			HAL_Delay(dly);
-		  qs_put_digits(i,i,i,i, 0);    HAL_Delay(dly);
-		  qs_put_digits(i,i,i,i, 1);	HAL_Delay(dly);
-	  }
-	  HAL_Delay(100);
-	  uart_print_menu();
-	  int menu_choice = uart_get_menu_choice();
-	  switch(menu_choice){
+	while (1)
+	{
+		for(int i = 0; i < 10; i++){
+			uint32_t dly = 100;
+			qs_put_big_num(i);			HAL_Delay(dly);
+			qs_put_digits(i,i,i,i, 0);    HAL_Delay(dly);
+			qs_put_digits(i,i,i,i, 1);	HAL_Delay(dly);
+		}
+		HAL_Delay(100);
+		uart_print_menu();
+		int menu_choice = uart_get_menu_choice();
+		switch(menu_choice){
 
-	  case 1: 			  clock_mode();		break;
-	  case 2: 	  		 button_mode();		break;
-	  default: uart_print_bad_choice();		break;
-	  }
+		case 1: 			  clock_mode();		break;
+		case 2: 	  		 button_mode();		break;
+		default: uart_print_bad_choice();		break;
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -240,6 +293,51 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 7999;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 799;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
@@ -361,11 +459,11 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
+	{
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -380,7 +478,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
