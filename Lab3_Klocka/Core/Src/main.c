@@ -42,13 +42,17 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim15;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint32_t my_time;
 uint16_t button_exti_count;
 uint16_t button_debounced_count;
 uint8_t  unhandled_exti;
+uint8_t  B1_pressed;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +60,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -124,16 +129,23 @@ void uart_print_choice(uint8_t choice){
 
 void clock_mode(){
 	/** init segment **/
+	uart_print_choice(2);
+	uint8_t hours = 23;
+	uint8_t minutes = 59;
+	uint8_t seconds = 45;
+	qs_put_digits(5,9,4,5,1);
+
 	/**main loop**/
 	while(1){
+
 
 	}
 }
 
 void button_mode(){
+	/** init segment **/
 	uart_print_choice(1);
 	qs_put_big_num(0);
-	/** init segment **/
 	/**main loop**/
 
 #if 0
@@ -143,7 +155,8 @@ void button_mode(){
 		if(1){
 			button_debounced_count = button_exti_count;
 		}
-		pressed = GPIO_PIN_RESET == HAL_GPIO_ReadPin(MY_BUTTON_GPIO_Port, MY_BUTTON_Pin);
+		pressed = GPIO_PIN_RESET
+				== HAL_GPIO_ReadPin(MY_BUTTON_GPIO_Port, MY_BUTTON_Pin);
 		qs_put_big_num(pressed ? button_exti_count : button_debounced_count);
 	}
 
@@ -152,9 +165,15 @@ void button_mode(){
 	while(1){
 		if(unhandled_exti){
 			button_debounced_count++;
-			qs_put_big_num(button_debounced_count);
 			unhandled_exti = 0;
 		}
+
+		if(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == 1){
+			qs_put_big_num(button_exti_count);
+		}else{
+			qs_put_big_num(button_debounced_count);
+		}
+
 	}
 
 #endif
@@ -169,19 +188,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		HAL_TIM_Base_Start_IT(&htim2);
 
 	}
-	if(GPIO_Pin == B1_Pin){
-		qs_put_big_num(button_exti_count);
-	}
-
+	if(GPIO_Pin == B1_Pin)
+		B1_pressed = 1;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+
 	if(htim->Instance == TIM2){
 		HAL_TIM_Base_Stop_IT(&htim2);
 		if(HAL_GPIO_ReadPin(MY_BUTTON_GPIO_Port, MY_BUTTON_Pin) == GPIO_PIN_RESET)
 			unhandled_exti = 1;
 
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	}
+	if(htim->Instance == TIM15){
+		++my_time;
 	}
 }
 
@@ -219,6 +240,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -321,7 +343,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 7999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 499;
+  htim2.Init.Period = 199;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -342,6 +364,52 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 7999;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 4999;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
 
 }
 
