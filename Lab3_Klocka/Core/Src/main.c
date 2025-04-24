@@ -47,12 +47,11 @@ TIM_HandleTypeDef htim15;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
-uint16_t button_exti_count;
+uint8_t  clock_seconds, clock_minutes, clock_hours;
 uint16_t button_debounced_count;
+uint16_t button_exti_count;
 uint8_t  unhandled_exti;
 uint8_t  colon_ind;
-uint8_t  B1_pressed;
 
 /* USER CODE END PV */
 
@@ -71,20 +70,17 @@ static void MX_TIM15_Init(void);
 
 
 void uart_print_menu(){
-	char str[81] = {'\0'};
+	char str[150] = {'\0'};
 	uint16_t str_len;
 	int one = 1;
 	int two = 2;
 
-	str_len = sprintf(str, "\n\r\n<> Welcome to the Clock menu! <>\r\n");
-	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
+	str_len = sprintf(str,
+	"\n\r\n<> Welcome to the Clock menu! <>\r\n"
+	"     Choose your destiny:: \n\r\n"
+	"\t%d: Clock Mode.\r\n\t%d: Button mode.\r\n",one,two);
 
-	str_len = sprintf(str, "     Choose your destiny:: \n\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
-
-	str_len = sprintf(str,"\t%d: Clock Mode.\r\n\t%d: Button mode.\r\n",one,two);
-	HAL_UART_Transmit(&huart2, (uint8_t*) str, str_len, HAL_MAX_DELAY);
-
 }
 
 int uart_get_menu_choice(){
@@ -132,55 +128,37 @@ void clock_mode(){
 	/** init segment **/
 	uart_print_choice(2);
 	colon_ind = 0;
-	uint8_t clock_hours = 23;
-	uint8_t clock_minutes = 59;
-	uint8_t clock_seconds = 45;
+	clock_hours = 23;
+	clock_minutes = 59;
+	clock_seconds = 45;
+	int d0,d1,d2,d3,d4,d5;
 	qs_put_digits(5,9,4,5,1);
+
 	__HAL_TIM_SET_COUNTER(&htim15, 0);
 	HAL_TIM_Base_Start_IT(&htim15);
-
-	//colon_ind får plus 1 varje gång en halv sekund har gått//
 
 	/**main loop**/
 	while(1){
 
+		d0 = clock_hours   / 10;
+		d1 = clock_hours   % 10;
+		d2 = clock_minutes / 10;
+		d3 = clock_minutes % 10;
+		d4 = clock_seconds / 10;
+		d5 = clock_seconds % 10;
 
-		if(colon_ind % 2 == 0){
-			++clock_seconds;
-			if(clock_seconds == 60){
-				clock_seconds = 0;
-				++clock_minutes;
-			}
-			if(clock_minutes == 60){
-				clock_minutes = 0;
-				++clock_hours;
-			}
-			if(clock_hours == 24)
-				clock_hours = 0;
 
-				//gör detta till en switch i annan funktion?//
-			if(!B1_pressed){
-				qs_put_digits((clock_minutes/10) % 10,
-						(clock_minutes % 10),
-						(clock_seconds/10) % 10,
-						(clock_seconds % 10), 0);
-			}else
-				qs_put_digits((clock_hours/10) % 10,
-						(clock_hours % 10),
-						(clock_minutes/10) % 10,
-						(clock_minutes % 10), 0);
-		}else{
-			if(!B1_pressed){
-				qs_put_digits((clock_minutes/10) % 10,
-						(clock_minutes % 10),
-						(clock_seconds/10) % 10,
-						(clock_seconds % 10), 1);
-			}
+		if(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)){
+			if(colon_ind)
+				qs_put_digits(d0,d1,d2,d3,1);
 			else
-				qs_put_digits((clock_hours/10) % 10,
-						(clock_hours % 10),
-						(clock_minutes/10) % 10,
-						(clock_minutes % 10), 1);
+				qs_put_digits(d0,d1,d2,d3,0);
+		}
+		else{
+			if(colon_ind)
+				qs_put_digits(d2,d3,d4,d5,1);
+			else
+				qs_put_digits(d2,d3,d4,d5,0);
 		}
 	}
 }
@@ -216,7 +194,6 @@ void button_mode(){
 		}else{
 			qs_put_big_num(button_debounced_count);
 		}
-
 	}
 
 #endif
@@ -231,8 +208,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		HAL_TIM_Base_Start_IT(&htim2);
 
 	}
-	if(GPIO_Pin == B1_Pin)
-		B1_pressed = 1;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -245,8 +220,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 	}
 
-	if(htim->Instance == TIM15)
-		++colon_ind;
+	if(htim->Instance == TIM15){
+	//colon_ind  = !colon_ind;//
+		colon_ind ^= 1;
+
+		if(colon_ind){
+			++clock_seconds;
+			if(clock_seconds == 60){
+				clock_seconds = 0;
+				++clock_minutes;
+
+				if(clock_minutes == 60){
+					clock_minutes = 0;
+					++clock_hours;
+
+					if(clock_hours == 24)
+						clock_hours = 0;
+				}
+			}
+		}
+	}
 }
 
 
@@ -286,7 +279,13 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-
+  for(int i = 0; i < 10; i++){
+	  uint32_t dly = 10;
+	  qs_put_big_num(i);			  HAL_Delay(dly);
+	  qs_put_digits(i,i,i,i, 0);      HAL_Delay(dly);
+	  qs_put_digits(i,i,i,i, 1);	  HAL_Delay(dly);
+  }
+  HAL_Delay(100);
 
   /* USER CODE END 2 */
 
@@ -294,24 +293,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		for(int i = 0; i < 10; i++){
-			uint32_t dly = 100;
-			qs_put_big_num(i);			  HAL_Delay(dly);
-			qs_put_digits(i,i,i,i, 0);    HAL_Delay(dly);
-			qs_put_digits(i,i,i,i, 1);	  HAL_Delay(dly);
-		}
-		HAL_Delay(100);
-		uint8_t bitmask = 0;
-		bitmask |= 0x80;
-		qs_put_bitmask_at(bitmask,1);
-		HAL_Delay(100);
-		bitmask &= ~0x80;
-		qs_put_bitmask_at(bitmask,1);
-
-
-
-
-
 		uart_print_menu();
 		int menu_choice = uart_get_menu_choice();
 		switch(menu_choice){
@@ -395,9 +376,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 7999;
+  htim2.Init.Prescaler = (8000-1);
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 199;
+  htim2.Init.Period = (500-1);
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
