@@ -47,10 +47,11 @@ TIM_HandleTypeDef htim15;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint32_t my_time;
+
 uint16_t button_exti_count;
 uint16_t button_debounced_count;
 uint8_t  unhandled_exti;
+uint8_t  colon_ind;
 uint8_t  B1_pressed;
 
 /* USER CODE END PV */
@@ -130,15 +131,57 @@ void uart_print_choice(uint8_t choice){
 void clock_mode(){
 	/** init segment **/
 	uart_print_choice(2);
-	uint8_t hours = 23;
-	uint8_t minutes = 59;
-	uint8_t seconds = 45;
+	colon_ind = 0;
+	uint8_t clock_hours = 23;
+	uint8_t clock_minutes = 59;
+	uint8_t clock_seconds = 45;
 	qs_put_digits(5,9,4,5,1);
+	__HAL_TIM_SET_COUNTER(&htim15, 0);
+	HAL_TIM_Base_Start_IT(&htim15);
+
+	//colon_ind får plus 1 varje gång en halv sekund har gått//
 
 	/**main loop**/
 	while(1){
 
 
+		if(colon_ind % 2 == 0){
+			++clock_seconds;
+			if(clock_seconds == 60){
+				clock_seconds = 0;
+				++clock_minutes;
+			}
+			if(clock_minutes == 60){
+				clock_minutes = 0;
+				++clock_hours;
+			}
+			if(clock_hours == 24)
+				clock_hours = 0;
+
+				//gör detta till en switch i annan funktion?//
+			if(!B1_pressed){
+				qs_put_digits((clock_minutes/10) % 10,
+						(clock_minutes % 10),
+						(clock_seconds/10) % 10,
+						(clock_seconds % 10), 0);
+			}else
+				qs_put_digits((clock_hours/10) % 10,
+						(clock_hours % 10),
+						(clock_minutes/10) % 10,
+						(clock_minutes % 10), 0);
+		}else{
+			if(!B1_pressed){
+				qs_put_digits((clock_minutes/10) % 10,
+						(clock_minutes % 10),
+						(clock_seconds/10) % 10,
+						(clock_seconds % 10), 1);
+			}
+			else
+				qs_put_digits((clock_hours/10) % 10,
+						(clock_hours % 10),
+						(clock_minutes/10) % 10,
+						(clock_minutes % 10), 1);
+		}
 	}
 }
 
@@ -201,9 +244,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 	}
-	if(htim->Instance == TIM15){
-		++my_time;
-	}
+
+	if(htim->Instance == TIM15)
+		++colon_ind;
 }
 
 
@@ -253,18 +296,29 @@ int main(void)
 	{
 		for(int i = 0; i < 10; i++){
 			uint32_t dly = 100;
-			qs_put_big_num(i);			HAL_Delay(dly);
+			qs_put_big_num(i);			  HAL_Delay(dly);
 			qs_put_digits(i,i,i,i, 0);    HAL_Delay(dly);
-			qs_put_digits(i,i,i,i, 1);	HAL_Delay(dly);
+			qs_put_digits(i,i,i,i, 1);	  HAL_Delay(dly);
 		}
 		HAL_Delay(100);
+		uint8_t bitmask = 0;
+		bitmask |= 0x80;
+		qs_put_bitmask_at(bitmask,1);
+		HAL_Delay(100);
+		bitmask &= ~0x80;
+		qs_put_bitmask_at(bitmask,1);
+
+
+
+
+
 		uart_print_menu();
 		int menu_choice = uart_get_menu_choice();
 		switch(menu_choice){
 
 		case 1: 			  clock_mode();		break;
 		case 2: 	  		 button_mode();		break;
-		default: uart_print_bad_choice();		break;
+		default:   uart_print_bad_choice();		break;
 		}
     /* USER CODE END WHILE */
 
