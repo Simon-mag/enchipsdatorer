@@ -35,6 +35,7 @@ struct clock_data{
 };
 
 struct clock_data my_clock;
+TextLCDType lcd;
 
 uint8_t second_flag;
 uint16_t released_button;
@@ -118,8 +119,6 @@ void wait_for_button_press(){
 
 	while(!released_button){}
 
-	while(released_button){}
-
 	released_button = 0;
 }
 
@@ -127,7 +126,7 @@ void wait_for_button_press(){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if(GPIO_Pin == B1_Pin){
-		released_button = !released_button;
+		released_button = 1;
 	}
 }
 
@@ -186,8 +185,14 @@ int main(void)
   cd_set(&my_clock, 23,59,45);
   second_flag = 0;
 
+  TextLCD_Init(&lcd, &hi2c1, 0x4E);
+
   __HAL_TIM_SET_COUNTER(&htim15, 0);
   HAL_TIM_Base_Start_IT(&htim15);
+  char c = 'B';
+  const char ASCII_CAPITAL_OFFSET = 'A';
+  const char LETTERS_TOTAL = 'Z'-'A';
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -195,17 +200,21 @@ int main(void)
   while (1)
   {
 
-	  for(int i= 0; i < 5; i++){
-		  wait_for_button_press();
-		  HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-	  }
-
 	  if(second_flag){
 		  cd_tick(&my_clock);
-		  print_cd_SVW(&my_clock);
+		  //print_cd_SVW(&my_clock);
 		  uart_print_cd(&huart2,&my_clock);
 		  second_flag = 0;
 	  }
+
+	  wait_for_button_press();
+	  TextLCD_PutChar(&lcd, c + ASCII_CAPITAL_OFFSET);
+	  c = (c+1) % LETTERS_TOTAL;
+
+
+	  //TextLCD_SendByte(&hlcd,test_number,0);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -417,7 +426,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 

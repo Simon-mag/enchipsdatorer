@@ -11,7 +11,7 @@
  */
 void My_Delay(uint32_t mysec)
 {
-//	HAL_Delay( 1 + (mysec / 1000) );
+	HAL_Delay( 1 + (mysec / 1000) );
 }
 
 #define BIT_BT   0x08
@@ -122,17 +122,17 @@ void TextLCD_SetBacklightFlag(GPIO_PinState bt)
 }
 
 
+void TextLCD_Clear		(TextLCDType * hlcd)
+{
+
+}
+
 
 void TextLCD_Home		(TextLCDType * hlcd)
 {
 
 }
 
-
-void TextLCD_Clear		(TextLCDType * hlcd)
-{
-
-}
 
 void TextLCD_SetDDRAMAdr(TextLCDType * hlcd, uint8_t adr)
 {
@@ -147,7 +147,9 @@ void TextLCD_Position	(TextLCDType * hlcd, int col, int row)
 
 void TextLCD_PutChar	(TextLCDType * hlcd, char c)
 {
-
+	hlcd->hi2c;
+	My_Delay(37);
+	RW = 0;
 }
 
 
