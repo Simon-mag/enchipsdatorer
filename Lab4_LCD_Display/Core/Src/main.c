@@ -37,8 +37,9 @@ struct clock_data{
 struct clock_data my_clock;
 TextLCDType lcd;
 
-uint8_t second_flag;
-uint16_t released_button;
+uint8_t second_flag = 0;
+uint16_t released_button = 0;
+uint16_t the_thing_im_waiting_for = 0;
 
 /* USER CODE END PTD */
 
@@ -118,18 +119,16 @@ void print_cd_SVW(struct clock_data * pcd){
 void wait_for_button_press(){
 
 	while(!released_button){}
-
+	HAL_Delay(50);
 	released_button = 0;
 }
 
 
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if(GPIO_Pin == B1_Pin){
-		released_button = 1;
+		released_button = !released_button;
 	}
 }
-
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM15){
@@ -183,15 +182,13 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   cd_set(&my_clock, 23,59,45);
-  second_flag = 0;
 
   TextLCD_Init(&lcd, &hi2c1, 0x4E);
 
   __HAL_TIM_SET_COUNTER(&htim15, 0);
   HAL_TIM_Base_Start_IT(&htim15);
-  char c = 'B';
-  const char ASCII_CAPITAL_OFFSET = 'A';
-  const char LETTERS_TOTAL = 'Z'-'A';
+
+  wait_for_button_press();
 
   /* USER CODE END 2 */
 
@@ -202,18 +199,12 @@ int main(void)
 
 	  if(second_flag){
 		  cd_tick(&my_clock);
-		  //print_cd_SVW(&my_clock);
-		  uart_print_cd(&huart2,&my_clock);
+		  char clock_info[12];
+		  sprintf(clock_info, "%02d:%02d:%02d", my_clock.hours, my_clock.minutes, my_clock.seconds);
+		  TextLCD_Position(&lcd,8,1);
+		  TextLCD_PutStr(&lcd,clock_info);
 		  second_flag = 0;
 	  }
-
-	  wait_for_button_press();
-	  TextLCD_PutChar(&lcd, c + ASCII_CAPITAL_OFFSET);
-	  c = (c+1) % LETTERS_TOTAL;
-
-
-	  //TextLCD_SendByte(&hlcd,test_number,0);
-
 
     /* USER CODE END WHILE */
 
