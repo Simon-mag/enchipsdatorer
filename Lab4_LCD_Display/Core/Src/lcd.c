@@ -1,6 +1,9 @@
 
 #include "lcd.h"
-
+#include "main.h"
+#include "stm32l4xx_hal.h"
+extern TIM_HandleTypeDef htim2;
+uint8_t tim2Interupt = 0;
 // first:   D7 D6 D5 D4 BT E  RW RS
 // second:  D3 D2 D1 D0 BT E  RW RS
 
@@ -9,10 +12,42 @@
  * my = mu = micro
  * Holds for an amount of microseconds.
  */
+
 void My_Delay(uint32_t mysec)
 {
-	HAL_Delay( 1 + (mysec / 1000) );
+	TIM2->CR1 &= ~TIM_CR1_CEN;
+	TIM2->CNT = 0;
+	TIM2->CR1 |= TIM_CR1_CEN;
+
+	while(TIM2->CNT <= mysec){}
 }
+
+void My_Delay2(uint32_t mysec)
+{
+	__HAL_TIM_DISABLE(&htim2);
+	__HAL_TIM_SET_COUNTER(&htim2,0);
+	__HAL_TIM_ENABLE(&htim2);
+
+	while(__HAL_TIM_GET_COUNTER(&htim2) <= mysec){}
+}
+
+void My_Delay3(uint32_t mysec){
+	tim2Interupt = 0;
+
+	HAL_TIM_Base_Stop_IT(&htim2);
+	__HAL_TIM_SET_COUNTER(&htim2,0);
+	__HAL_TIM_SET_AUTORELOAD(&htim2,mysec);
+	HAL_TIM_Base_Start_IT(&htim2);
+
+	while(!tim2Interupt){}
+
+	HAL_TIM_Base_Stop_IT(&htim2);
+}
+
+void myTIM2Interupt(){
+	tim2Interupt = 1;
+}
+
 
 #define BIT_BT   0x08
 #define BIT_E    0x04    // 0000 0100 == 0x08
@@ -144,14 +179,12 @@ void TextLCD_SetDDRAMAdr(TextLCDType * hlcd, uint8_t adr)
 
 void TextLCD_Position	(TextLCDType * hlcd, int col, int row)
 {
-
 	if(row > 1)row = 1;
 	if(col > 15) col = 15;
 	int hex = col;
 	if(row == 1)
 		hex += 0x40;
 
-	//TextLCD_SendByte(hlcd, 0x80 | hex, GPIO_PIN_RESET);
 	TextLCD_SetDDRAMAdr(hlcd,hex);
 }
 
@@ -169,7 +202,10 @@ void TextLCD_PutStr		(TextLCDType * hlcd, char * str)
 	}
 }
 
-
+void TextLCD_BlinkingCursor(TextLCDType * hlcd)
+{
+	TextLCD_SendByte(hlcd,0x0F,GPIO_PIN_RESET);
+}
 
 
 

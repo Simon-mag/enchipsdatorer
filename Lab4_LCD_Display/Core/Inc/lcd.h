@@ -41,13 +41,16 @@ void TextLCD_SetBacklightFlag(GPIO_PinState bt);
 
 
 
-
-void TextLCD_Home		(TextLCDType * hlcd);
-void TextLCD_Clear		(TextLCDType * hlcd);
-void TextLCD_SetDDRAMAdr(TextLCDType * hlcd, uint8_t adr);
-void TextLCD_Position	(TextLCDType * hlcd, int col, int row);
-void TextLCD_PutChar	(TextLCDType * hlcd, char c);
-void TextLCD_PutStr		(TextLCDType * hlcd, char * str);
+void My_Delay       	    (uint32_t mysec);
+void My_Delay2				(uint32_t mysec);
+void My_Delay3				(uint32_t mysec);
+void TextLCD_Home			(TextLCDType * hlcd);
+void TextLCD_Clear			(TextLCDType * hlcd);
+void TextLCD_SetDDRAMAdr	(TextLCDType * hlcd, uint8_t adr);
+void TextLCD_Position	 	(TextLCDType * hlcd, int col, int row);
+void TextLCD_PutChar	    (TextLCDType * hlcd, char c);
+void TextLCD_PutStr		    (TextLCDType * hlcd, char * str);
+void TextLCD_BlinkingCursor (TextLCDType * hlcd);
 
 //void TextLCD_Printf(TextLCDType *lcd, char *message, ...);
 
