@@ -32,11 +32,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_Buffer_len 2
+#define ADC_Buffer_len 3
 #define JOY_X_IX 0
 #define JOY_Y_IX 1
 #define LM35_IX  2
-uint16_t testValue;
+#define LIGHT_IX 3
+
+uint16_t ADC_Buffer[ADC_Buffer_len];
+uint8_t ADCSet = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -71,40 +74,33 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//void HAL_ADC_ConvCpltCallback(){}
-
-
-
-uint16_t read_one_adc_value(ADC_HandleTypeDef * hadc){
-	HAL_ADC_Start(hadc);
-	HAL_ADC_PollForConversion(hadc, 100);
-	uint32_t reading = HAL_ADC_GetValue(hadc);
-	HAL_ADC_Stop(hadc);
-	return (uint16_t) reading;
-}
-
-
-
-
-
 float normalize_12bit(uint16_t x)
 {
-	return ((float)x / 4036);
+	return ((float)x / 4060);
 }
 
 float normalize_12bit_posneg(uint16_t x)
 {
-	return ((float)x - 2018) / 2018;
+	return ((float)x - 2030) / 2030;
 }
 
-int _write(int file, char *ptr, int len)
+float flying_fish_to_lumen(uint16_t light_reading)
 {
-  for (int i = 0; i < len; i++)
-  {
-    ITM_SendChar((*ptr++));
-  }
-  return len;
+	return (float) light_reading / 4095.0;
 }
+
+
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+	if(hadc->Instance == ADC1){
+		static uint8_t channel = 0;
+		ADC_Buffer[channel] = HAL_ADC_GetValue(hadc);
+
+		channel = (channel + 1) % ADC_Buffer_len;
+		ADCSet = 1;
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -141,42 +137,44 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  TextLCD_Init(&lcd,&hi2c1,0x4E);
-  char joyStickStr[16];
-  float ADC_Buffer[ADC_Buffer_len];
 
+  TextLCD_Init(&lcd,&hi2c1,0x4E);
+  char SensorInfo[16];
+
+  HAL_ADC_Start_IT(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  testValue = read_one_adc_value(&hadc1);
-	  ADC_Buffer[0] = normalize_12bit_posneg(read_one_adc_value(&hadc1));
-	  ADC_Buffer[1] = normalize_12bit_posneg(read_one_adc_value(&hadc1));
 
-
-#if 0
-	  for(int i = 0; i<2; ++i){
-		  sprintf(joyStickStr, "%s: %.2f  ",x + i,joyStick_x);
-		  TextLCD_Position(&lcd,0,(0+i));
-		  TextLCD_PutStr(&lcd,joyStickStr);
-	  }
-
-#else
+	  if(ADCSet){
 	  //X JOYSTICK //
-	  sprintf(joyStickStr, "X:%.2f  ",joyStick_x);
+	  sprintf(SensorInfo, "X:%.2f  ",normalize_12bit_posneg(ADC_Buffer[JOY_X_IX]));
 	  TextLCD_Position(&lcd,0,0);
-	  TextLCD_PutStr(&lcd,joyStickStr);
+	  TextLCD_PutStr(&lcd,SensorInfo);
 
 	  //Y JOYSTICK //
-	  sprintf(joyStickStr, "Y:%.2f  ",joyStick_y);
+	  sprintf(SensorInfo, "Y:%.2f  ",normalize_12bit_posneg(ADC_Buffer[JOY_Y_IX]));
 	  TextLCD_Position(&lcd,0,1);
-	  TextLCD_PutStr(&lcd,joyStickStr);
+	  TextLCD_PutStr(&lcd,SensorInfo);
+
+	  //TEMP SENSOR //
+	 // sprintf(SensorInfo, "%.1f°C  ", lm35_to_celsius(ADC_Buffer[LIGHT_IX]));
+	 // TextLCD_Position(&lcd,11,1);
+	 // TextLCD_PutStr(&lcd,SensorInfo);
+
+	  //LIGHT SENSOR //
+	  sprintf(SensorInfo, "%.3fL  ", flying_fish_to_lumen(ADC_Buffer[LM35_IX]));
+	  TextLCD_Position(&lcd,10,1);
+	  TextLCD_PutStr(&lcd,SensorInfo);
+
+	  ADCSet = 0;
+	  }
 
 
-#endif
-	  My_Delay2(400*1000);
+	  My_Delay2(4000);
 
     /* USER CODE END WHILE */
 
@@ -261,8 +259,8 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 3;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -278,7 +276,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -291,6 +289,15 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -485,7 +492,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+int _write(int file, char *ptr, int len)
+{
+  for (int i = 0; i < len; i++)
+  {
+    ITM_SendChar((*ptr++));
+  }
+  return len;
+}
 /* USER CODE END 4 */
 
 /**

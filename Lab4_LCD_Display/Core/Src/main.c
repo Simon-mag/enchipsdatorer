@@ -133,7 +133,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM15){
-		second_flag = 1;
+		second_flag++;
 	}
 	if(htim->Instance == TIM2){
 		myTIM2Interupt();
@@ -190,26 +190,26 @@ int main(void)
 
   cd_set(&my_clock, 23,59,45);
   __HAL_TIM_SET_COUNTER(&htim15, 0);
-  HAL_TIM_Base_Start_IT(&htim15);
+
 
   TextLCD_Position(&lcd,7,1);
   TextLCD_BlinkingCursor(&lcd);
 
   wait_for_button_press();
-
+  HAL_TIM_Base_Start_IT(&htim15);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(second_flag){
+	  if(second_flag > 0){
 		  cd_tick(&my_clock);
 		  char clock_info[12];
 		  sprintf(clock_info, "%02d:%02d:%02d", my_clock.hours, my_clock.minutes, my_clock.seconds);
 		  TextLCD_Position(&lcd,7,1);
 		  TextLCD_PutStr(&lcd,clock_info);
-		  second_flag = 0;
+		  second_flag--;
 	  }
 
     /* USER CODE END WHILE */
