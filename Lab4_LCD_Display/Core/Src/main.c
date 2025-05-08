@@ -39,7 +39,6 @@ TextLCDType lcd;
 
 uint8_t second_flag = 0;
 uint16_t released_button = 0;
-uint16_t the_thing_im_waiting_for = 0;
 
 /* USER CODE END PTD */
 

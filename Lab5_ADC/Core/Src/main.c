@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "lcd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,6 +32,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ADC_Buffer_len 2
+#define JOY_X_IX 0
+#define JOY_Y_IX 1
+#define LM35_IX  2
 uint16_t testValue;
 /* USER CODE END PD */
 
@@ -49,7 +54,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+TextLCDType lcd;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,14 +83,18 @@ uint16_t read_one_adc_value(ADC_HandleTypeDef * hadc){
 	return (uint16_t) reading;
 }
 
+
+
+
+
 float normalize_12bit(uint16_t x)
 {
-	return (x * 0.0002442);
+	return ((float)x / 4036);
 }
 
 float normalize_12bit_posneg(uint16_t x)
 {
-	return (x - 2047) * 0.0004884;
+	return ((float)x - 2018) / 2018;
 }
 
 int _write(int file, char *ptr, int len)
@@ -132,6 +141,9 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  TextLCD_Init(&lcd,&hi2c1,0x4E);
+  char joyStickStr[16];
+  float ADC_Buffer[ADC_Buffer_len];
 
   /* USER CODE END 2 */
 
@@ -139,14 +151,32 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
 	  testValue = read_one_adc_value(&hadc1);
+	  ADC_Buffer[0] = normalize_12bit_posneg(read_one_adc_value(&hadc1));
+	  ADC_Buffer[1] = normalize_12bit_posneg(read_one_adc_value(&hadc1));
 
-	  float test = normalize_12bit_posneg(testValue);
 
-	  printf("TestValue is equal to: %.2f \n", test);
+#if 0
+	  for(int i = 0; i<2; ++i){
+		  sprintf(joyStickStr, "%s: %.2f  ",x + i,joyStick_x);
+		  TextLCD_Position(&lcd,0,(0+i));
+		  TextLCD_PutStr(&lcd,joyStickStr);
+	  }
 
-	  HAL_Delay(200);
+#else
+	  //X JOYSTICK //
+	  sprintf(joyStickStr, "X:%.2f  ",joyStick_x);
+	  TextLCD_Position(&lcd,0,0);
+	  TextLCD_PutStr(&lcd,joyStickStr);
+
+	  //Y JOYSTICK //
+	  sprintf(joyStickStr, "Y:%.2f  ",joyStick_y);
+	  TextLCD_Position(&lcd,0,1);
+	  TextLCD_PutStr(&lcd,joyStickStr);
+
+
+#endif
+	  My_Delay2(400*1000);
 
     /* USER CODE END WHILE */
 
@@ -228,11 +258,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 2;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -252,6 +282,15 @@ static void MX_ADC1_Init(void)
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
