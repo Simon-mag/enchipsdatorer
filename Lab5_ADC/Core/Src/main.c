@@ -86,7 +86,7 @@ float normalize_12bit_posneg(uint16_t x)
 
 float flying_fish_to_lumen(uint16_t light_reading)
 {
-	return (float) light_reading / 4095.0;
+	return (float) (light_reading - 4095) / (-4095.0);
 }
 
 
@@ -140,8 +140,8 @@ int main(void)
 
   TextLCD_Init(&lcd,&hi2c1,0x4E);
   char SensorInfo[16];
-
   HAL_ADC_Start_IT(&hadc1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
