@@ -75,7 +75,6 @@ static void MX_TIM15_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-
 void Display_water_value(){
 	char water_value[16];
 	if(water_sensor < 1500)
@@ -97,13 +96,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 	}
 }
 
-void Tilt_led_off(){
-	GPIOA->BRR = GPIO_BRR_BR12;
-}
+void Tilt_led_off(){ GPIOA->BRR = GPIO_BRR_BR12; }
 
-void Tilt_led_on(){
-	GPIOA->BSRR = GPIO_BSRR_BS12;
-}
+void Tilt_led_on() { GPIOA->BSRR = GPIO_BSRR_BS12; }
 
 void turn_on_levelLEDS(int level){
 
@@ -162,11 +157,11 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
+
   char LCD_text[20];
   TextLCD_Init(&lcd,&hi2c1,0x4E);
   HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
-
 
   /* USER CODE END 2 */
 
@@ -174,26 +169,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
 	  tilt_sensor_flag = HAL_GPIO_ReadPin(tilt_sensor_GPIO_Port, tilt_sensor_Pin);
-
 
 	  if(tilt_sensor_flag == GPIO_PIN_RESET){
 		  abuzz_stop();
 		  Tilt_led_off();
 
-
 		  if(water_sensor < 2500){
 		  	  Display_water_info("No Water...     ");
 		  	  turn_on_levelLEDS(none);
 		  }
-		  else
-			  if(water_sensor < 3700){
+		  else if(water_sensor < 3700){
 				  Display_water_info("Level: Low    ");
 				  turn_on_levelLEDS(low);
 			  }
-			  else
-				  if(water_sensor < 3900){
+			  else if(water_sensor < 3900){
 					  Display_water_info("Level: Medium    ");
 					  turn_on_levelLEDS(medium);
 				  }
