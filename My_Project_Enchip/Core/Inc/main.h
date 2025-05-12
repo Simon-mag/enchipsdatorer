@@ -49,6 +49,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -79,8 +81,8 @@ void Error_Handler(void);
 #define SMPS_SW_GPIO_Port GPIOA
 #define LD4_Pin GPIO_PIN_13
 #define LD4_GPIO_Port GPIOB
-#define tilt_LED_Pin GPIO_PIN_8
-#define tilt_LED_GPIO_Port GPIOA
+#define Buzzer_Pin GPIO_PIN_14
+#define Buzzer_GPIO_Port GPIOB
 #define high_LED_Pin GPIO_PIN_9
 #define high_LED_GPIO_Port GPIOA
 #define medium_LED_Pin GPIO_PIN_10

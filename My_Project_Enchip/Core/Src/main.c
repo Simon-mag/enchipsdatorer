@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "lcd.h"
+#include "abuzz.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,10 +33,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define Sensor_Array_len 2
-
-uint16_t Sensor_Array[Sensor_Array_len];
-uint8_t ADC_flag;
+uint16_t water_sensor;
+uint8_t tilt_sensor_flag;
+#define none   0
+#define low    1
+#define medium 2
+#define high   3
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,6 +52,7 @@ ADC_HandleTypeDef hadc1;
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim15;
 
 UART_HandleTypeDef huart2;
 
@@ -62,12 +67,63 @@ static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
+void Display_water_value(){
+	char water_value[16];
+	if(water_sensor < 1500)
+		water_sensor = 0;
+	TextLCD_Position(&lcd,0,1);
+	sprintf(water_value, "Value: %d   ", (water_sensor /  4));
+	TextLCD_PutStr(&lcd, water_value);
+}
+
+void Display_water_info(char info[]){
+	TextLCD_Position(&lcd,0,0);
+	TextLCD_PutStr(&lcd,info);
+	Display_water_value();
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+	if(hadc->Instance == ADC1){
+		water_sensor = HAL_ADC_GetValue(hadc);
+	}
+}
+
+void Tilt_led_off(){
+	GPIOA->BRR = GPIO_BRR_BR12;
+}
+
+void Tilt_led_on(){
+	GPIOA->BSRR = GPIO_BSRR_BS12;
+}
+
+void turn_on_levelLEDS(int level){
+
+	switch(level){
+	case 0:
+		GPIOA->BRR = GPIO_BRR_BR11 | GPIO_BRR_BR10 | GPIO_BRR_BR9;
+		break;
+	case 1:
+		GPIOA->BSRR = GPIO_BSRR_BS11;
+		GPIOA->BRR = GPIO_BRR_BR10 | GPIO_BRR_BR9;
+		break;
+	case 2:
+		GPIOA->BSRR = GPIO_BSRR_BS11 | GPIO_BSRR_BS10;
+		GPIOA->BRR = GPIO_BRR_BR9;
+		break;
+	case 3:
+		GPIOA->BSRR = GPIO_BSRR_BS11 | GPIO_BSRR_BS10 | GPIO_BSRR_BS9;
+		break;
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -104,11 +160,12 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
+  char LCD_text[20];
   TextLCD_Init(&lcd,&hi2c1,0x4E);
-
-
-
+  HAL_ADC_Start_IT(&hadc1);
+  HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
 
 
   /* USER CODE END 2 */
@@ -118,19 +175,47 @@ int main(void)
   while (1)
   {
 
+	  tilt_sensor_flag = HAL_GPIO_ReadPin(tilt_sensor_GPIO_Port, tilt_sensor_Pin);
 
 
+	  if(tilt_sensor_flag == GPIO_PIN_RESET){
+		  abuzz_stop();
+		  Tilt_led_off();
 
 
+		  if(water_sensor < 2500){
+		  	  Display_water_info("No Water...     ");
+		  	  turn_on_levelLEDS(none);
+		  }
+		  else
+			  if(water_sensor < 3700){
+				  Display_water_info("Level: Low    ");
+				  turn_on_levelLEDS(low);
+			  }
+			  else
+				  if(water_sensor < 3900){
+					  Display_water_info("Level: Medium    ");
+					  turn_on_levelLEDS(medium);
+				  }
+				  else{
+					  Display_water_info("Level: High    ");
+					  turn_on_levelLEDS(high);
+				  }
+	  }
+	  else{
+		  abuzz_start();
+		  abuzz_p_short();
+		  Tilt_led_on();
 
+		  TextLCD_Clear(&lcd);
+		  TextLCD_Position(&lcd,0,0);
+		  sprintf(LCD_text, "Device is Tilted");
+		  TextLCD_PutStr(&lcd,LCD_text);
 
-
-
-
-
-
-
-
+		  while(tilt_sensor_flag == GPIO_PIN_SET){
+			  tilt_sensor_flag = HAL_GPIO_ReadPin(tilt_sensor_GPIO_Port, tilt_sensor_Pin);
+		  }
+	  }
 
     /* USER CODE END WHILE */
 
@@ -212,11 +297,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
-  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -236,15 +321,6 @@ static void MX_ADC1_Init(void)
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_2;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -349,6 +425,81 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 0;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 65535;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim15, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
+  HAL_TIM_MspPostInit(&htim15);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -402,8 +553,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|tilt_LED_Pin
-                          |high_LED_Pin|medium_LED_Pin|low_LED_Pin|buzzer_pin_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|high_LED_Pin
+                          |medium_LED_Pin|low_LED_Pin|buzzer_pin_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
@@ -414,8 +565,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin */
-  GPIO_InitStruct.Pin = SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin;
+  /*Configure GPIO pin : tilt_sensor_Pin */
+  GPIO_InitStruct.Pin = tilt_sensor_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(tilt_sensor_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin high_LED_Pin
+                           medium_LED_Pin low_LED_Pin buzzer_pin_Pin */
+  GPIO_InitStruct.Pin = SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|high_LED_Pin
+                          |medium_LED_Pin|low_LED_Pin|buzzer_pin_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -433,15 +592,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD4_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : tilt_LED_Pin high_LED_Pin medium_LED_Pin low_LED_Pin
-                           buzzer_pin_Pin */
-  GPIO_InitStruct.Pin = tilt_LED_Pin|high_LED_Pin|medium_LED_Pin|low_LED_Pin
-                          |buzzer_pin_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
