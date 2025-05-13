@@ -90,12 +90,6 @@ void Display_water_info(char info[]){
 	Display_water_value();
 }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
-	if(hadc->Instance == ADC1){
-		water_sensor = HAL_ADC_GetValue(hadc);
-	}
-}
-
 void Tilt_led_off(){ GPIOA->BRR = GPIO_BRR_BR12; }
 
 void Tilt_led_on() { GPIOA->BSRR = GPIO_BSRR_BS12; }
@@ -117,6 +111,22 @@ void change_levelLEDS(int level){
 	case 3:
 		GPIOA->BSRR = GPIO_BSRR_BS11 | GPIO_BSRR_BS10 | GPIO_BSRR_BS9;
 		break;
+	}
+}
+
+void Display_tilted_info(char info[]){
+	abuzz_start();
+	abuzz_p_short();
+    Tilt_led_on();
+    change_levelLEDS(none);
+	TextLCD_Clear(&lcd);
+	TextLCD_Position(&lcd,0,0);
+	TextLCD_PutStr(&lcd,info);
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+	if(hadc->Instance == ADC1){
+		water_sensor = HAL_ADC_GetValue(hadc);
 	}
 }
 
@@ -158,7 +168,6 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-  char LCD_text[20];
   TextLCD_Init(&lcd,&hi2c1,0x4E);
   HAL_ADC_Start_IT(&hadc1);
   HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
@@ -193,14 +202,7 @@ int main(void)
 				  }
 	  }
 	  else{
-		  abuzz_start();
-		  abuzz_p_short();
-		  Tilt_led_on();
-		  change_levelLEDS(none);
-		  TextLCD_Clear(&lcd);
-		  TextLCD_Position(&lcd,0,0);
-		  sprintf(LCD_text, "Device is Tilted");
-		  TextLCD_PutStr(&lcd,LCD_text);
+		  Display_tilted_info("Device is Tilted");
 
 		  while(tilt_sensor_flag == GPIO_PIN_SET){
 			  tilt_sensor_flag = HAL_GPIO_ReadPin(tilt_sensor_GPIO_Port, tilt_sensor_Pin);
