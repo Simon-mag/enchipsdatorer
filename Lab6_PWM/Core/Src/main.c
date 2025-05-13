@@ -66,7 +66,7 @@ static void MX_TIM1_Init(void);
 void rgb_setting(){
 	static float t = 10.0f;
 	const float offset = M_TWOPI / 3.0f;
-	const float half_arr = (999 + 1) / 2.0f;
+	const float half_arr = freq / 2.0f;
 
 	rf = sinf((M_TWOPI * t * freq) + (0 * offset));
 	gf = sinf((M_TWOPI * t * freq) + (1 * offset));
