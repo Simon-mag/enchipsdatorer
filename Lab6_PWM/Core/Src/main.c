@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +31,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+float rf;
+float gf;
+float bf;
+int freq = 1000;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,6 +62,38 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void rgb_setting(){
+	static float t = 0.0f;
+	const float offset = M_TWOPI / 3.0f;
+	const float half_arr = (999 + 1) / 2.0f;
+
+	rf = sinf((M_TWOPI * t * freq) + (0 * offset));
+	gf = sinf((M_TWOPI * t * freq) + (1 * offset));
+	bf = sinf((M_TWOPI * t * freq) + (2 * offset));
+	rf = (rf + 1.0) * half_arr * 1.67f;
+	gf = (gf + 1.0) * half_arr;
+	bf = (bf + 1.0) * half_arr * 3.33f;
+
+	t += (1.0f / freq);
+
+	if(t > 100)
+		t = 1;
+
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, rf);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, gf);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, bf);
+}
+
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM1){
+		rgb_setting();
+	}
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -95,12 +130,19 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
+  HAL_TIM_Base_Start_IT(&htim1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

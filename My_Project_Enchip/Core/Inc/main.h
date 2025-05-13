@@ -89,8 +89,8 @@ void Error_Handler(void);
 #define medium_LED_GPIO_Port GPIOA
 #define low_LED_Pin GPIO_PIN_11
 #define low_LED_GPIO_Port GPIOA
-#define buzzer_pin_Pin GPIO_PIN_12
-#define buzzer_pin_GPIO_Port GPIOA
+#define tilt_LED_Pin GPIO_PIN_12
+#define tilt_LED_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
