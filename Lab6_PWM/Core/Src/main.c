@@ -64,7 +64,7 @@ static void MX_TIM1_Init(void);
 /* USER CODE BEGIN 0 */
 
 void rgb_setting(){
-	static float t = 0.0f;
+	static float t = 10.0f;
 	const float offset = M_TWOPI / 3.0f;
 	const float half_arr = (999 + 1) / 2.0f;
 
@@ -78,7 +78,7 @@ void rgb_setting(){
 	t += (1.0f / freq);
 
 	if(t > 100)
-		t = 1;
+		t = 10;
 
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, rf);
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, gf);
