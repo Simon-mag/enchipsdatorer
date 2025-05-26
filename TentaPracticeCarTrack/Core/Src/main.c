@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdlib.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +40,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -50,102 +52,14 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-int is_blue_button_pressed();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const uint16_t sseg[10] = {0x5F,0x06,0x9B,0x8F,0xC6,0xCD,0xDD,0x07,0xDF,0xCF};
-const uint16_t sseg_err = 0x19C;
 
-
-void put_on_sseg(uint8_t dec_nbr){
-	GPIOC->ODR = 0x00;
-
-	if(dec_nbr >= 0 && dec_nbr <= 9){
-		GPIOC->ODR = sseg[dec_nbr];
-		return;
-	}
-	GPIOC->ODR = sseg_err;
-}
-
-// Returns 1 if button is pressed, else 0 //
-int is_blue_button_pressed(){
-	return (GPIOC->IDR & GPIO_PIN_13) != 0;
-}
-
-// Restets all pins in the dice to 0
-void reset_die_dots(){
-	HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_RESET);
-
-	GPIOC->BRR = GPIO_PIN_0 |
-			GPIO_PIN_1 |
-			GPIO_PIN_2 |
-			GPIO_PIN_3 |
-			GPIO_PIN_4 |
-			GPIO_PIN_5 |
-			GPIO_PIN_6 |
-			GPIO_PIN_7;
-
-	GPIOC->BRR &= 0b1111111000100000;
-}
-
-//turns on dice diodes depending on paramiter number
-void put_die_dots(uint8_t die_number){
-
-	reset_die_dots();
-
-	switch(die_number){
-	case 1:
-		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
-		break;
-	case 2:
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		break;
-	case 3:
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		break;
-	case 4:
-		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
-		break;
-	case 5:
-		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
-		break;
-	case 6:
-		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
-		break;
-	default:
-		HAL_GPIO_WritePin(DI_A_GPIO_Port,DI_A_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_B_GPIO_Port,DI_B_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_C_GPIO_Port,DI_C_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_D_GPIO_Port,DI_D_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_E_GPIO_Port,DI_E_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_F_GPIO_Port,DI_F_Pin ,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(DI_G_GPIO_Port,DI_G_Pin ,GPIO_PIN_SET);
-	}
-}
 /* USER CODE END 0 */
 
 /**
@@ -178,48 +92,17 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
-  for(uint8_t i = 1; i<8; ++i){
-	  put_die_dots(i);
-	  HAL_Delay(333);
-  }
-  HAL_Delay(1000);
-  reset_die_dots();
-
-  for(uint8_t i = 0; i < 10; ++i){
-  		put_on_sseg(i);
-  		HAL_Delay(333);
-  	}
-  	put_on_sseg(88);
-  	HAL_Delay(1000);
-	GPIOC->ODR = 0x00;
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  srand(HAL_GetTick());
-  int pressed = 0;
-
   while (1)
   {
-	  pressed = is_blue_button_pressed();
 
-		  if(pressed){
-			  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
-			  uint8_t die_value = (rand() % 6) + 1 ;
-			  put_die_dots(die_value);
-			  put_on_sseg(die_value);
 
-		  }
-		  else{
-			  GPIO_TypeDef* ld4_gpio     = GPIOB;
-			  uint16_t      ld4_pin_nbr  = 13;
-			  uint16_t      ld4_pin      = 0x01 << ld4_pin_nbr;
-			  HAL_GPIO_WritePin(ld4_gpio, ld4_pin, GPIO_PIN_RESET);
-		  }
-	  HAL_Delay(80);
 
     /* USER CODE END WHILE */
 
@@ -278,6 +161,65 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -331,15 +273,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|DI_A_Pin
-                          |DI_B_Pin|DI_C_Pin|DI_D_Pin|DI_E_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LD4_Pin|DI_F_Pin|DI_G_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -347,19 +284,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC0 PC1 PC2 PC3
-                           PC4 PC6 PC7 PC8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin DI_A_Pin
-                           DI_B_Pin DI_C_Pin DI_D_Pin DI_E_Pin */
-  GPIO_InitStruct.Pin = SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin|DI_A_Pin
-                          |DI_B_Pin|DI_C_Pin|DI_D_Pin|DI_E_Pin;
+  /*Configure GPIO pins : SMPS_EN_Pin SMPS_V1_Pin SMPS_SW_Pin */
+  GPIO_InitStruct.Pin = SMPS_EN_Pin|SMPS_V1_Pin|SMPS_SW_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -371,16 +297,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(SMPS_PG_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD4_Pin DI_F_Pin DI_G_Pin */
-  GPIO_InitStruct.Pin = LD4_Pin|DI_F_Pin|DI_G_Pin;
+  /*Configure GPIO pins : PB0 PB1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD4_Pin */
+  GPIO_InitStruct.Pin = LD4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  HAL_GPIO_Init(LD4_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -388,35 +322,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == B1_Pin) {
-        HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
-        uint8_t die_value = (rand() % 6) + 1;
-        put_die_dots(die_value);
-    }
-}
-
-/*  uint32_t arr[10];
-  void test_endianness(){
-	  for(int i = 0; i<10; i +=2){
-		  arr[i+0] = 0xDEADBEEF;
-		  arr[i+1] = 0xCAFED00D;
-	  }
-	  uint16_t a = arr[0];
-	  uint16_t b = arr[1];
-	  uint16_t c = arr[2];
-	  uint8_t x = arr[0];
-	  uint8_t y = arr[1];
-	  uint8_t *arr8 = (uint8_t *) arr;
-	  uint8_t p = arr8[0];
-	  uint8_t q = arr8[1];
-	  uint8_t r = arr8[2];
-	  uint8_t s = arr8[3];
-	  uint8_t t = arr8[4];
-	  uint16_t babe = 0xBABE;
-	  arr[0] = babe;
-	  return;
-  }*/
 
 /* USER CODE END 4 */
 
