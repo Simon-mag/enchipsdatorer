@@ -90,8 +90,8 @@ float flying_fish_to_lumen(uint16_t light_reading)
 }
 
 
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
 	if(hadc->Instance == ADC1){
 		static uint8_t channel = 0;
 		ADC_Buffer[channel] = HAL_ADC_GetValue(hadc);
@@ -149,7 +149,8 @@ int main(void)
   while (1)
   {
 
-	  if(ADCSet){
+	  if(ADCSet)
+	  {
 	  //X JOYSTICK //
 	  sprintf(SensorInfo, "X:%.2f  ",normalize_12bit_posneg(ADC_Buffer[JOY_X_IX]));
 	  TextLCD_Position(&lcd,0,0);
@@ -173,8 +174,7 @@ int main(void)
 	  ADCSet = 0;
 	  }
 
-
-	  My_Delay2(4000);
+	  My_Delay2(400);
 
     /* USER CODE END WHILE */
 

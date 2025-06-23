@@ -60,6 +60,34 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+float Read_temp(uint16_t ADCtemp){
+
+	return (ADCtemp * 0.0806f);
+
+}
+
+void Pump_on(){
+	GPIOA->BSRR = GPIO_PIN_4;
+}
+
+void Pump_off(){
+	GPIOA->BRR = GPIO_PIN_4;
+}
+
+void Heater_on(float duty){
+	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,duty*1000);
+
+}
+
+void Control_temp(){
+
+	float current_temp = Read_temp;
+
+	while(wished_temp - current_temp){
+
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -101,6 +129,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_Delay(100);
+	  int16_t time = HAL_GetTick();
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+	  int16_t check = HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_4);
+	  if(check && time){
+		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
+	  }
 
 
 
